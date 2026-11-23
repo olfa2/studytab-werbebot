@@ -66,6 +66,9 @@ export type Draft = {
   status: DraftStatus;
   planned_at: string | null;
   experiment: string | null;
+  title: string | null;
+  template: "notiz" | "marke";
+  sound_hint: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -119,7 +122,7 @@ export type Database = {
       trends: T<Trend, Opt<Trend, "id" | "created_at" | "source_url" | "hook" | "format" | "structure" | "topic" | "sound" | "hashtags" | "views" | "likes" | "shares" | "growth_7d" | "rank" | "notes">>;
       drafts: T<
         Draft,
-        Opt<Draft, "id" | "created_at" | "updated_at" | "trend_id" | "slides" | "image_paths" | "caption" | "hashtags" | "mentions_studytab" | "is_ad" | "status" | "planned_at" | "experiment">,
+        Opt<Draft, "id" | "created_at" | "updated_at" | "trend_id" | "slides" | "image_paths" | "caption" | "hashtags" | "mentions_studytab" | "is_ad" | "status" | "planned_at" | "experiment" | "title" | "template" | "sound_hint">,
         [
           { foreignKeyName: "drafts_account_id_fkey"; columns: ["account_id"]; isOneToOne: false; referencedRelation: "accounts"; referencedColumns: ["id"] },
           { foreignKeyName: "drafts_trend_id_fkey"; columns: ["trend_id"]; isOneToOne: false; referencedRelation: "trends"; referencedColumns: ["id"] },

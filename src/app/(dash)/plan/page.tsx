@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { Empty, PageHeader, SlotBadge } from "@/components/ui";
-import { slideTexts } from "@/lib/slides";
+import { parseSlides } from "@/lib/slides";
 import { dayKey, fmtDateTime, fmtDay, fmtNum, isoToViennaLocal } from "@/lib/time";
 import type { PostStat } from "@/lib/database.types";
 import { addPostStat, markPosted, setPlannedAt } from "../actions";
@@ -10,7 +10,7 @@ export default async function PlanPage() {
   const [{ data: approved }, { data: posts }, { data: stats }] = await Promise.all([
     supabase
       .from("drafts")
-      .select("id, planned_at, caption, slides, is_ad, accounts(slot, handle)")
+      .select("id, title, planned_at, caption, slides, is_ad, accounts(slot, handle)")
       .eq("status", "freigegeben")
       .order("planned_at", { ascending: true, nullsFirst: false }),
     supabase
@@ -50,7 +50,7 @@ export default async function PlanPage() {
                   <div className="flex min-w-0 flex-1 items-center gap-2">
                     <SlotBadge slot={d.accounts?.slot ?? "?"} />
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{slideTexts(d.slides)[0] ?? d.caption ?? "(ohne Text)"}</p>
+                      <p className="truncate text-sm font-medium">{d.title ?? parseSlides(d.slides)[0]?.title ?? d.caption ?? "(ohne Text)"}</p>
                       <p className="text-xs text-tinte/50">
                         {d.accounts?.handle}
                         {d.is_ad && " · Werbung kennzeichnen"}

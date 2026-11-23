@@ -72,9 +72,20 @@ export async function setDraftStatus(formData: FormData) {
 export async function updateDraft(formData: FormData) {
   const mentions = formData.get("mentions_studytab") === "on";
   const supabase = await createClient();
+  const n = Number(formData.get("slide_count") ?? 0);
+  const slides = Array.from({ length: n }, (_, i) => {
+    const slide: Record<string, string> = { title: str(formData, `slide_title_${i}`) ?? "" };
+    for (const k of ["body", "small", "img"]) {
+      const v = str(formData, `slide_${k}_${i}`);
+      if (v) slide[k] = v;
+    }
+    return slide;
+  });
   const { error } = await supabase
     .from("drafts")
     .update({
+      ...(n > 0 ? { slides } : {}),
+      title: str(formData, "title")?.slice(0, 90) ?? null,
       caption: str(formData, "caption"),
       hashtags: tags(str(formData, "hashtags")),
       mentions_studytab: mentions,

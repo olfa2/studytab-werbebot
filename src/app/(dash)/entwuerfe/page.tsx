@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { Empty, PageHeader, SlotBadge, StatusBadge } from "@/components/ui";
 import { CopyButton } from "@/components/copy-button";
-import { slideTexts } from "@/lib/slides";
+import { parseSlides } from "@/lib/slides";
+import { DownloadAll } from "@/components/download-all";
 import { fmtDateTime } from "@/lib/time";
 import type { DraftStatus } from "@/lib/database.types";
 import { setDraftStatus, updateDraft } from "../actions";
@@ -36,13 +37,6 @@ export default async function DraftsPage({
     supabase.from("accounts").select("id, slot, handle").order("slot"),
   ]);
 
-  const paths = (drafts ?? []).flatMap((d) => d.image_paths);
-  const signed = new Map<string, string>();
-  if (paths.length) {
-    const { data } = await supabase.storage.from("slides").createSignedUrls(paths, 60 * 60);
-    data?.forEach((s) => s.path && s.signedUrl && signed.set(s.path, s.signedUrl));
-  }
-
   const href = (p: Record<string, string | undefined>) => {
     const q = new URLSearchParams();
     const next = { status, account: sp.account, ...p };
@@ -75,7 +69,7 @@ export default async function DraftsPage({
 
       <div className="space-y-4">
         {drafts?.map((d) => {
-          const texts = slideTexts(d.slides);
+          const slides = parseSlides(d.slides);
           const fullCaption = [d.caption, d.hashtags.join(" ")].filter(Boolean).join("\n\n");
           return (
             <article key={d.id} className="card">
@@ -90,32 +84,49 @@ export default async function DraftsPage({
                 </span>
               </header>
 
-              {d.image_paths.length > 0 ? (
-                <div className="mb-4 flex gap-2 overflow-x-auto pb-2">
-                  {d.image_paths.map((p, i) =>
-                    signed.get(p) ? (
-                      <a key={p} href={signed.get(p)} download target="_blank" rel="noreferrer" className="shrink-0">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={signed.get(p)} alt={`Slide ${i + 1}`} className="h-64 w-36 rounded-lg object-cover ring-1 ring-black/5" />
-                      </a>
-                    ) : null,
-                  )}
-                </div>
-              ) : (
-                <ol className="mb-4 flex gap-2 overflow-x-auto pb-2">
-                  {texts.map((t, i) => (
-                    <li key={i} className="flex h-48 w-32 shrink-0 flex-col rounded-lg bg-grund p-2 text-xs ring-1 ring-black/5">
-                      <span className="mb-1 font-bold text-tinte/40">{i + 1}</span>
-                      <span className="whitespace-pre-line">{t}</span>
-                    </li>
-                  ))}
-                  {!texts.length && <li className="text-sm text-tinte/50">Keine Slides.</li>}
-                </ol>
-              )}
+              <div className="mb-4 flex gap-2 overflow-x-auto pb-2">
+                {slides.map((_, i) => (
+                  <a key={i} href={`/api/slides/${d.id}/${i + 1}`} target="_blank" rel="noreferrer" className="shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/api/slides/${d.id}/${i + 1}?v=${encodeURIComponent(d.updated_at)}`}
+                      alt={`Slide ${i + 1}`}
+                      loading="lazy"
+                      className="h-64 w-48 rounded-lg bg-white object-cover ring-1 ring-black/5"
+                    />
+                  </a>
+                ))}
+                {!slides.length && <p className="text-sm text-tinte/50">Keine Slides.</p>}
+              </div>
 
               <form action={updateDraft} className="grid gap-3 md:grid-cols-[1fr_auto]">
                 <input type="hidden" name="id" value={d.id} />
                 <div className="space-y-2">
+                  <details>
+                    <summary className="cursor-pointer text-sm font-medium text-ozean">Slide-Texte bearbeiten</summary>
+                    <input type="hidden" name="slide_count" value={slides.length} />
+                    <div className="mt-2 space-y-3">
+                      {slides.map((sl, i) => (
+                        <div key={i} className="rounded-lg bg-grund p-3">
+                          <label className="label">Slide {i + 1} – Überschrift</label>
+                          <input name={`slide_title_${i}`} defaultValue={sl.title} className="input" />
+                          {i > 0 && (
+                            <>
+                              <label className="label mt-2">Text (_so_ = unterstrichen)</label>
+                              <textarea name={`slide_body_${i}`} defaultValue={sl.body ?? ""} rows={2} className="input" />
+                            </>
+                          )}
+                          {sl.small && <input type="hidden" name={`slide_small_${i}`} value={sl.small} />}
+                          <label className="label mt-2">Bild aus Bibliothek (leer = keins)</label>
+                          <input name={`slide_img_${i}`} defaultValue={sl.img ?? ""} className="input" placeholder="z. B. app-scan, kapy-buch" />
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                  <div>
+                    <label className="label">TikTok-Titel (max. 90 Zeichen)</label>
+                    <input name="title" defaultValue={d.title ?? ""} maxLength={90} className="input" />
+                  </div>
                   <div>
                     <label className="label">Caption</label>
                     <textarea name="caption" defaultValue={d.caption ?? ""} rows={3} className="input" />
@@ -136,6 +147,9 @@ export default async function DraftsPage({
                 <div className="flex flex-col gap-2 md:w-40">
                   <button className="btn-ghost">Änderungen speichern</button>
                   <CopyButton text={fullCaption} label="Caption kopieren" />
+                  {d.title && <CopyButton text={d.title} label="Titel kopieren" />}
+                  {slides.length > 0 && <DownloadAll id={d.id} count={slides.length} />}
+                  {d.sound_hint && <p className="text-xs text-tinte/60">Sound: {d.sound_hint}</p>}
                 </div>
               </form>
 
