@@ -3,9 +3,12 @@ import { Empty, PageHeader, SlotBadge, StatusBadge } from "@/components/ui";
 import { CopyButton } from "@/components/copy-button";
 import { parseSlides } from "@/lib/slides";
 import { DownloadAll } from "@/components/download-all";
+import { SlideEditor } from "@/components/slide-editor";
+import { DeleteButton } from "@/components/delete-button";
+import { listLibrary } from "@/lib/library";
 import { fmtDateTime } from "@/lib/time";
 import type { DraftStatus } from "@/lib/database.types";
-import { setDraftStatus, updateDraft } from "../actions";
+import { deleteDraft, setDraftStatus, updateDraft } from "../actions";
 
 const FILTERS: { key: DraftStatus | "alle"; label: string }[] = [
   { key: "entwurf", label: "Zur Freigabe" },
@@ -36,6 +39,8 @@ export default async function DraftsPage({
     query,
     supabase.from("accounts").select("id, slot, handle").order("slot"),
   ]);
+
+  const library = listLibrary();
 
   const href = (p: Record<string, string | undefined>) => {
     const q = new URLSearchParams();
@@ -103,25 +108,8 @@ export default async function DraftsPage({
                 <input type="hidden" name="id" value={d.id} />
                 <div className="space-y-2">
                   <details>
-                    <summary className="cursor-pointer text-sm font-medium text-ozean">Slide-Texte bearbeiten</summary>
-                    <input type="hidden" name="slide_count" value={slides.length} />
-                    <div className="mt-2 space-y-3">
-                      {slides.map((sl, i) => (
-                        <div key={i} className="rounded-lg bg-grund p-3">
-                          <label className="label">Slide {i + 1} – Überschrift</label>
-                          <input name={`slide_title_${i}`} defaultValue={sl.title} className="input" />
-                          {i > 0 && (
-                            <>
-                              <label className="label mt-2">Text (_so_ = unterstrichen)</label>
-                              <textarea name={`slide_body_${i}`} defaultValue={sl.body ?? ""} rows={2} className="input" />
-                            </>
-                          )}
-                          {sl.small && <input type="hidden" name={`slide_small_${i}`} value={sl.small} />}
-                          <label className="label mt-2">Bild aus Bibliothek (leer = keins)</label>
-                          <input name={`slide_img_${i}`} defaultValue={sl.img ?? ""} className="input" placeholder="z. B. app-scan, kapy-buch" />
-                        </div>
-                      ))}
-                    </div>
+                    <summary className="cursor-pointer text-sm font-medium text-ozean">Slides bearbeiten ({slides.length})</summary>
+                    <SlideEditor initial={slides} library={library} />
                   </details>
                   <div>
                     <label className="label">TikTok-Titel (max. 90 Zeichen)</label>
@@ -163,6 +151,10 @@ export default async function DraftsPage({
                 {(d.status === "freigegeben" || d.status === "verworfen" || d.status === "fehler") && (
                   <StatusButton id={d.id} status="entwurf" className="btn-ghost">Zurück zu Entwurf</StatusButton>
                 )}
+                <form action={deleteDraft}>
+                  <input type="hidden" name="id" value={d.id} />
+                  <DeleteButton />
+                </form>
                 {d.is_ad && (
                   <p className="ml-auto self-center text-xs text-tinte/60">
                     In TikTok beim Posten den Schalter „Inhalte offenlegen“ → „Deine Marke“ aktivieren.
