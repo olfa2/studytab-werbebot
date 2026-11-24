@@ -12,7 +12,8 @@ select category, rule, based_on_posts, account_id from insights where active ord
 select a.slot, d.title, d.slides->0->>'title' as hook, d.status, d.created_at
   from drafts d join accounts a on a.id = d.account_id
   where d.created_at > now() - interval '35 days' order by d.created_at desc;
-select id, source, source_url, hook, format, views, notes from trends where week = 'WOCHE' order by created_at;
+select id, source, source_url, author, hook, format, likes, saves, posted_at, notes from trends
+  where source in ('oliver', 'tiktok') and created_at > now() - interval '14 days' order by rank nulls last, likes desc nulls last;
 select count(*) from drafts where planned_at >= 'WOCHE'::date and planned_at < 'WOCHE'::date + 7;
 ```
 
@@ -22,9 +23,9 @@ Regeln aus `insights` haben Vorrang vor den Startwerten unten, wenn `based_on_po
 
 ## 1. Trend-Scout
 
-**Hauptquelle sind echte TikTok-Posts aus der Datenbank** (`trends` mit `week = 'WOCHE'` und `source in ('oliver', 'tiktok')`): von Oliver gespeicherte Posts und Posts, die direkt auf TikTok gefunden wurden (Seite „TikTok“ im Dashboard, mit Likes, Saves, Datum, Notizen zum Format). TikTok selbst wird in diesem Lauf nicht geöffnet. Posts mit `notes` und hoher Save-Quote (Saves ÷ Likes) zählen am meisten; ältere als 6 Monate nur als Ergänzung.
+**Hauptquelle sind echte TikTok-Posts aus der Datenbank** (`trends` mit `source in ('oliver', 'tiktok')`, in den letzten 14 Tagen eingetragen): von Oliver gespeicherte Posts und Posts, die direkt auf TikTok gefunden wurden (Seite „TikTok“ im Dashboard, mit Likes, Saves, Datum, Notizen zum Format). TikTok selbst wird in diesem Lauf nicht geöffnet. Posts mit `notes` und hoher Save-Quote (Saves ÷ Likes) zählen am meisten; ältere als 6 Monate nur als Ergänzung.
 
-- Pro gespeichertem Post analysieren: Was ist das Format (Listicle, Vorher → Nachher, POV, Geständnis, Checkliste …), wie ist der Hook gebaut (Zahl, Identität, Provokation, Frage …), welches Thema? Ergebnis in die Zeile schreiben (`update trends set format = …, structure = …, topic = …, rank = … where id = …`). Ranking nach Views, sonst nach Olivers Reihenfolge.
+- Pro gespeichertem Post analysieren: Was ist das Format (Listicle, Vorher → Nachher, POV, Geständnis, Checkliste …), wie ist der Hook gebaut (Zahl, Identität, Provokation, Frage …), welches Thema? Ergebnis in die Zeile schreiben (`update trends set format = …, structure = …, topic = …, rank = … where id = …`). Ranking nach Save-Quote und Likes; schon analysierte Posts (mit `rank`) nicht neu ranken.
 - Hook-Text nie wörtlich übernehmen, nur die Bauweise.
 - **Nur wenn weniger als 3 solche Posts da sind:** mit Websuche auf bis zu 5 Formate ergänzen, `source = 'websuche (Ersatz)'`, Zahlen nur wenn belegt (sonst `null`). Im Bericht deutlich sagen, dass Oliver zu wenig Posts gespeichert hat.
 
@@ -47,6 +48,7 @@ Alle Accounts nutzen `template = 'notiz'` (weißer Notiz-Stil, lo-fi).
 - `_so_` = unterstrichen, in jedem Body 1–2 Stellen.
 - **Jede Slide bekommt ein Bild** (Cover und jeder Tipp). In einem Post kein Bild doppelt, über die Woche möglichst breit streuen und zum Inhalt passend wählen (Gehirn → Gedächtnis, Uhr/Sanduhr → Zeit, Tafel → Unterricht, Statue → Haltung/Fokus, Gemälde → Gefühle/Memes, Collage → Kreativität/Chaos).
 - Bibliothek Stimmungsbilder: `p-collage-1…5`, `p-gehirn-1…12`, `p-gemaelde-1…7`, `p-sanduhr-1…8`, `p-statue-3`, `p-statue-6`, `p-statue-7`, `p-statue-10`, `p-tafel-1…10`, `p-uhr-1…7`.
+- Maskottchen: `kapy-arme-hoch`, `kapy-buch`, `kapy-daumen`, `kapy-entspannt`, `kapy-flamme`, `kapy-freut`.
 - Bibliothek App (iPhone-Mockups, aktuelles Design): `app-home` (Startseite mit „coming up“), `app-faecher-liste` (Fächer mit Schnitt), `app-fach` (ein Fach: Test, Lernsets, Notizen, Noten), `app-lernen-ki` (Lernen-Tab: Notiz scannen, mit KI Lernset/Test erstellen), `app-karte-vorne` / `app-karte-hinten` (Karteikarte), `app-lernart-auswahl` (Multiple Choice), `app-lernart-tippen` (Antwort tippen), `app-lernart-puzzle` (Zuordnen), `app-notenrechner` (Notenrechner), `app-notenrechner-ziel` (welche Note man beim nächsten Test braucht), `app-note-eintragen`, `app-alle-noten` (Gesamtschnitt aller Fächer), `app-kalender` (Kalender mit Terminen), `app-termin-erinnerung` (Test eintragen mit Erinnerungen), `app-gruppen-liste`, `app-gruppe-sets` (geteilte Lernsets in der Gruppe). Ältere Mockups (`app-start`, `app-faecher`, `app-gruppen`, `app-karteikarten`, `app-scan`, `app-ki-auswahl`, `app-ki-ergebnis`) nur noch, wenn nichts Neueres passt.
 - App- und Kapy-Bilder **nur** auf Slides, die studytab erwähnen, und nur in Posts mit `mentions_studytab = true`. Das App-Mockup muss genau das Feature der Slide zeigen; für Features ohne Mockup (Moodle, Streak, Kapy-Chat) ein Stimmungsbild.
 
@@ -56,7 +58,7 @@ Alle Accounts nutzen `template = 'notiz'` (weißer Notiz-Stil, lo-fi).
 - 6–8 Slides. Formate aus Schritt 1, bevorzugt Transformation (Vorher → Nachher) und Listicles; reine Feature-Listen meiden.
 - **Darf nicht nach KI-Werbung klingen:** schreiben wie eine kurze Notiz von Schüler:innen für Schüler:innen, alles klein, kurze Sätze, nüchtern. Verboten: Slogans und Floskeln („that's the whole trick“, „game changer“, „level up“, „unlock“, „Kapy is waiting“, „no more chaos“), Dreier-Aufzählungen als Stilmittel, Ausrufezeichen, Gedankenstriche, Emojis, „(studytab)“ im Titel. Kapy nicht im Text nennen.
 - studytab auf 2–3 Slides erwähnen, die anderen Slides sind echte, konkrete Tipps zum Thema.
-- Erlaubte Features: KI aus Mitschrift (Zusammenfassung, Lernset, Probetest), Mitschrift scannen + automatisch ins Fach, 4 Lernarten (Karten, Auswahl, Tippen, Puzzle), Moodle-Anbindung, Termine + Lernplan, Notenrechner (works with your school's grading scale), Gruppen + Live-Battles, Streak + Tagesziel, Kapy-Chat. Nicht: Fokus-Timer, Studytab Plus.
+- Erlaubte Features: KI aus Mitschrift (Zusammenfassung, Lernset, Probetest), Mitschrift scannen + automatisch ins Fach, 4 Lernarten (Karten, Auswahl, Tippen, Puzzle), Moodle-Anbindung, Termine + Lernplan + Erinnerungen, Notenrechner (works with your school's grading scale), Gruppen + Live-Battles, Streak + Tagesziel, Kapy-Chat. Nicht: Fokus-Timer, Studytab Plus.
 
 ### Account B · @studybuddy893
 
