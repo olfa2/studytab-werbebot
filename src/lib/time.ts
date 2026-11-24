@@ -72,3 +72,10 @@ export function fmtNum(n: number | null | undefined) {
   if (n == null) return "–";
   return new Intl.NumberFormat("de-AT", { notation: n >= 10000 ? "compact" : "standard", maximumFractionDigits: 1 }).format(n);
 }
+
+/** Montag der nächsten Woche (YYYY-MM-DD) – für Posts, die du diese Woche sammelst */
+export function nextWeek() {
+  const d = new Date(currentWeek() + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + 7);
+  return d.toISOString().slice(0, 10);
+}

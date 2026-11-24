@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { Empty, PageHeader } from "@/components/ui";
-import { currentWeek, fmtNum } from "@/lib/time";
-import { addTrend, deleteTrend } from "../actions";
+import { currentWeek, fmtNum, nextWeek } from "@/lib/time";
+import { addTrend, addViralPost, deleteTrend } from "../actions";
 
 export default async function TrendsPage({ searchParams }: { searchParams: Promise<{ woche?: string }> }) {
   const { woche } = await searchParams;
@@ -11,7 +11,7 @@ export default async function TrendsPage({ searchParams }: { searchParams: Promi
     supabase.from("trends").select("*").eq("week", week).order("rank", { ascending: true, nullsFirst: false }).order("views", { ascending: false }),
     supabase.from("trends").select("week").order("week", { ascending: false }),
   ]);
-  const weekList = Array.from(new Set([currentWeek(), ...(weeks ?? []).map((w) => w.week)]));
+  const weekList = Array.from(new Set([nextWeek(), currentWeek(), ...(weeks ?? []).map((w) => w.week)]));
 
   return (
     <>
@@ -19,6 +19,33 @@ export default async function TrendsPage({ searchParams }: { searchParams: Promi
         title="Trends"
         sub="Nur Format, Hook und Struktur festhalten – fremde Clips, Bilder und Texte werden nie übernommen."
       />
+
+      <form action={addViralPost} className="card mb-6 grid gap-3 border-aktion/20 md:grid-cols-[2fr_2fr_1fr_1.5fr_auto] md:items-end">
+        <div className="md:col-span-5">
+          <h2 className="font-semibold">Viralen TikTok speichern</h2>
+          <p className="text-xs text-tinte/60">
+            Beim Scrollen gefunden? Link + was auf Slide 1 steht. Landet in der Woche ab{" "}
+            {new Date(nextWeek()).toLocaleDateString("de-AT", { day: "2-digit", month: "2-digit" })} und ist die Grundlage für den Sonntagslauf.
+          </p>
+        </div>
+        <div>
+          <label className="label">TikTok-Link</label>
+          <input name="source_url" type="url" required className="input" placeholder="https://www.tiktok.com/@…/photo/…" />
+        </div>
+        <div>
+          <label className="label">Hook (Text auf Slide 1)</label>
+          <input name="hook" className="input" />
+        </div>
+        <div>
+          <label className="label">Views</label>
+          <input name="views" type="number" min={0} className="input" />
+        </div>
+        <div>
+          <label className="label">Was macht ihn gut? (optional)</label>
+          <input name="notes" className="input" placeholder="Format, Sound, Bilder…" />
+        </div>
+        <button className="btn-primary">Speichern</button>
+      </form>
 
       <div className="mb-4 flex flex-wrap gap-2">
         {weekList.map((w) => (

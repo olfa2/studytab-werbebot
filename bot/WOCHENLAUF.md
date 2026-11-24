@@ -1,6 +1,6 @@
 # Wöchentlicher Lauf: Trend-Scout + Content-Generator
 
-Läuft jeden Sonntag als geplante Claude-Aufgabe. Schreibt nur über das Supabase-Tool (`execute_sql`) in das Projekt **Tiktokresearch** (`xytxulmknwxlmyrmeedx`). Kein Posten, kein Login bei TikTok, keine Browser-Automation. Nie das Projekt „Schulapp“ anfassen.
+Läuft jeden Sonntag als geplante Claude-Aufgabe. Schreibt nur über das Supabase-Tool (`execute_sql`) in das Projekt **Tiktokresearch** (`xytxulmknwxlmyrmeedx`). Kein Posten, kein Login bei TikTok, TikTok nicht öffnen oder scrapen, keine Browser-Automation. Nie das Projekt „Schulapp“ anfassen.
 
 `WOCHE` = der nächste Montag nach dem heutigen Datum (Lauf am Sonntag → morgen), Format `YYYY-MM-DD`. Alle Zeiten Europe/Vienna.
 
@@ -12,73 +12,80 @@ select category, rule, based_on_posts, account_id from insights where active ord
 select a.slot, d.title, d.slides->0->>'title' as hook, d.status, d.created_at
   from drafts d join accounts a on a.id = d.account_id
   where d.created_at > now() - interval '35 days' order by d.created_at desc;
-select count(*) from trends where week = 'WOCHE';
+select id, source, source_url, hook, format, views, notes from trends where week = 'WOCHE' order by created_at;
 select count(*) from drafts where planned_at >= 'WOCHE'::date and planned_at < 'WOCHE'::date + 7;
 ```
 
-Gibt es für `WOCHE` schon Trends oder Entwürfe, nichts doppelt anlegen: nur ergänzen, was fehlt, und das im Bericht sagen.
+Gibt es für `WOCHE` schon Entwürfe, nichts doppelt anlegen: nur ergänzen, was fehlt, und das im Bericht sagen.
 
 Regeln aus `insights` haben Vorrang vor den Startwerten unten, wenn `based_on_posts` ≥ 10.
 
 ## 1. Trend-Scout
 
-- Recherche per Websuche (zuerst `standard`, bei dünnen Ergebnissen `extended`): aktuelle Formate auf TikTok in der Lern-/Schulnische (#studytok, #studytips, #studywithme, #schule, #schulalltag, #matura, #abitur, #prüfung, #studymotivation, #productivity), TikTok Creative Center (Trend-Hashtags, Songs), aktuelle Artikel über virale Study-Slideshows.
-- 10 Formate auswählen und ranken (1 = stärkstes). Pro Format: Hook **in eigenen Worten** (nie fremde Texte übernehmen), Format, Struktur, Thema, Sound (falls bekannt), Hashtags, Zahlen nur wenn belegt (sonst `null`, nie schätzen), Quelle, Link.
-- Einfügen:
+**Hauptquelle sind die viralen TikToks, die Oliver unter der Woche gespeichert hat** (`trends` mit `source = 'oliver'` und `week = 'WOCHE'`: Link, Hook von Slide 1, Views, Notiz). TikTok selbst wird nicht geöffnet.
 
-```sql
-insert into trends (week, source, source_url, hook, format, structure, topic, sound, hashtags, views, likes, shares, rank, notes)
-values ('WOCHE', $q$…$q$, $q$…$q$, $q$…$q$, …, array['#studytok','#studytips'], null, null, null, 1, $q$…$q$);
-```
+- Pro gespeichertem Post analysieren: Was ist das Format (Listicle, Vorher → Nachher, POV, Geständnis, Checkliste …), wie ist der Hook gebaut (Zahl, Identität, Provokation, Frage …), welches Thema? Ergebnis in die Zeile schreiben (`update trends set format = …, structure = …, topic = …, rank = … where id = …`). Ranking nach Views, sonst nach Olivers Reihenfolge.
+- Hook-Text nie wörtlich übernehmen, nur die Bauweise.
+- **Nur wenn weniger als 3 gespeicherte Posts da sind:** mit Websuche auf bis zu 5 Formate ergänzen, `source = 'websuche (Ersatz)'`, Zahlen nur wenn belegt (sonst `null`). Im Bericht deutlich sagen, dass Oliver zu wenig Posts gespeichert hat.
 
 Texte immer mit `$q$…$q$` quoten.
 
 ## 2. Content-Generator
 
-Pro Account **7 Entwürfe** (1 pro Tag, Mo–So), alle auf Englisch, einfache Wörter. Jeder Entwurf basiert auf einem Trend-Format der Woche (`trend_id`), aber mit eigenem Thema und eigenen Texten. Kein Thema und kein Hook der letzten 5 Wochen wiederholen. Nie derselbe Post auf zwei Accounts.
+Pro Account **7 Entwürfe** (1 pro Tag, Mo–So), alle auf Englisch, einfache Wörter. Jeder Entwurf baut ein Format aus Schritt 1 nach (`trend_id`): Aufbau und Hook-Bauweise übernehmen, Thema und Texte eigen. Jeder Trend höchstens 2x pro Woche, die stärksten zuerst. Kein Thema und kein Hook der letzten 5 Wochen wiederholen. Nie derselbe Post auf zwei Accounts.
+
+Alle Accounts nutzen `template = 'notiz'` (weißer Notiz-Stil, lo-fi).
 
 ### Slides (`drafts.slides`, JSON-Array)
 
 ```json
-[{"title":"7 niche habits that make teachers secretly love you","small":"(save this)","img":"kapy-buch"},
- {"title":"sit front or middle","body":"teachers mostly talk to _whoever they can see_."}]
+[{"title":"7 niche habits of students who never cram","small":"(save this)","img":"p-sanduhr-2"},
+ {"title":"the 2-day rule","body":"never let a topic sit untouched for _more than 2 days_.","img":"p-gehirn-4"}]
 ```
 
-- `title` Pflicht, `body` für Tipp-Slides, `small` nur auf Slide 1, `img` optional (Schlüssel aus der Bibliothek).
-- `_so_` = unterstrichen/markiert, in jedem Body 1–2 Stellen.
-- Bibliothek: `kapy-arme-hoch`, `kapy-buch`, `kapy-daumen`, `kapy-entspannt`, `kapy-flamme`, `kapy-freut`, `app-start`, `app-faecher` (Fächer + Noten), `app-gruppen`, `app-karteikarten`, `app-scan` (Mitschrift scannen), `app-ki-auswahl` (KI: Lernset/Test/Zusammenfassung wählen), `app-ki-ergebnis`.
-- Kapy- und App-Bilder **nur** in Posts mit `mentions_studytab = true` (sonst wäre es versteckte Werbung).
+- `title` Pflicht, `body` für Tipp-Slides, `small` nur auf Slide 1, `img` = Schlüssel aus der Bibliothek.
+- `_so_` = unterstrichen, in jedem Body 1–2 Stellen.
+- **Jede Slide bekommt ein Bild** (Cover und jeder Tipp). In einem Post kein Bild doppelt, über die Woche möglichst breit streuen und zum Inhalt passend wählen (Gehirn → Gedächtnis, Uhr/Sanduhr → Zeit, Tafel → Unterricht, Statue → Haltung/Fokus, Gemälde → Gefühle/Memes, Collage → Kreativität/Chaos).
+- Bibliothek Stimmungsbilder: `p-collage-1…5`, `p-gehirn-1…12`, `p-gemaelde-1…7`, `p-sanduhr-1…8`, `p-statue-3`, `p-statue-6`, `p-statue-7`, `p-statue-10`, `p-tafel-1…10`, `p-uhr-1…7`.
+- Bibliothek App: `app-start`, `app-faecher` (Fächer + Noten), `app-gruppen`, `app-karteikarten`, `app-scan` (Mitschrift scannen), `app-ki-auswahl` (KI: Lernset/Test/Zusammenfassung wählen), `app-ki-ergebnis`. Maskottchen: `kapy-arme-hoch`, `kapy-buch`, `kapy-daumen`, `kapy-entspannt`, `kapy-flamme`, `kapy-freut`.
+- App- und Kapy-Bilder **nur** auf Slides, die studytab erwähnen, und nur in Posts mit `mentions_studytab = true`. Das App-Mockup muss genau das Feature der Slide zeigen; für Features ohne Mockup (Moodle, Kalender/Lernplan, Streak, Kapy-Chat) ein Stimmungsbild.
 
-### Account A · Marke (`template = 'marke'`)
+### Account A · Marke
 
 - Jeder Post bewirbt studytab: `mentions_studytab = true`, `is_ad = true`.
-- 5–7 Slides. Startformat: Transformation („how i went from X to Y“, Vorher → Nachher) und Listicles; reine Feature-Listen meiden. Lo-fi, ehrlich, Schüler-Perspektive ohne erfundene Erlebnisse.
-- Slide 1: Hook + Kapy-Bild. Tipp-Slides: App-Mockup, das genau das Feature der Slide zeigt.
-- Erlaubte Features: KI aus Mitschrift (Zusammenfassung, Lernset, Probetest), Mitschrift scannen + automatisch ins Fach, 4 Lernarten (Karten, Auswahl, Tippen, Puzzle), Moodle-Anbindung, Termine + Lernplan, Notenrechner (österreichische Skala), Gruppen + Live-Battles, Streak + Tagesziel, Kapy-Chat. Nicht: Fokus-Timer, Studytab Plus.
+- 6–8 Slides. Formate aus Schritt 1, bevorzugt Transformation (Vorher → Nachher) und Listicles; reine Feature-Listen meiden.
+- **Darf nicht nach KI-Werbung klingen:** schreiben wie eine kurze Notiz von Schüler:innen für Schüler:innen, alles klein, kurze Sätze, nüchtern. Verboten: Slogans und Floskeln („that's the whole trick“, „game changer“, „level up“, „unlock“, „Kapy is waiting“, „no more chaos“), Dreier-Aufzählungen als Stilmittel, Ausrufezeichen, Gedankenstriche, Emojis, „(studytab)“ im Titel. Kapy nicht im Text nennen.
+- studytab auf 2–3 Slides erwähnen, die anderen Slides sind echte, konkrete Tipps zum Thema.
+- Erlaubte Features: KI aus Mitschrift (Zusammenfassung, Lernset, Probetest), Mitschrift scannen + automatisch ins Fach, 4 Lernarten (Karten, Auswahl, Tippen, Puzzle), Moodle-Anbindung, Termine + Lernplan, Notenrechner (works with your school's grading scale), Gruppen + Live-Battles, Streak + Tagesziel, Kapy-Chat. Nicht: Fokus-Timer, Studytab Plus.
 
-### Account B · @studybuddy893 (`template = 'notiz'`)
+### Account B · @studybuddy893
 
-- Weißer Notiz-Stil, **8 Slides** (Hook + 7 Tipps), 7–9 ok, nie 6.
-- Hook max. 9 Wörter: Zahl + Status-/Identitätsversprechen + „niche“ (z. B. „7 niche skills that make you scary smart“). Keine generischen „study tips/hacks“-Hooks. `small`: „(save this)“ oder ein Zusatz mit Mehrwert.
-- Jeder Tipp braucht etwas Konkretes (Zahl, Beispiel, Satz zum Kopieren). Allgemeinplätze („take breaks“, „sleep more“) fliegen raus.
-- **2 von 7** Posts mit studytab (`mentions_studytab = true`, `is_ad = true`): studytab genau 1x, frühestens auf der vorletzten Slide, nie auf Slide 2–4, als Feature-Tipp mit passendem `app-*`-Bild oder „btw, … works with studytab“. Ohne CTA. Jedes Mal ein anderes Feature.
-- Die anderen 5: kein studytab, keine Bilder, `is_ad = false`.
+- **8 Slides** (Hook + 7 Tipps), 7–9 ok, nie 6.
+- Hook max. 9 Wörter: Zahl + Status-/Identitätsversprechen + „niche“ (z. B. „7 niche skills that make you scary smart“) oder eine Aussage wie bei Olivers Top-Posts („your grade isn't only about the test“). Zahl passend zur Slide-Anzahl, nicht immer 7. Keine generischen „study tips/hacks“-Hooks. `small`: „(save this)“ oder ein Zusatz mit Mehrwert.
+- **2 von 7** Posts mit studytab (`mentions_studytab = true`, `is_ad = true`): studytab genau 1x, frühestens auf der vorletzten Slide, nie auf Slide 2–4, als Feature-Tipp mit passendem `app-*`-Bild oder „btw, studytab does this: …“. Ohne CTA. Jedes Mal ein anderes Feature.
+- Die anderen 5: kein studytab, `is_ad = false`.
 - Caption: Aussage + Frage („your grade isn't only about the test. which one are you trying tomorrow?“). Hashtags 4–5 aus #niche #lockedin #studytok #studytips #smarttok.
 
-### Account C · allgemein (`template = 'notiz'`)
+### Account C · allgemein
 
-- **Nie** studytab, nie Kapy, keine App-Bilder: `mentions_studytab = false`, `is_ad = false`, keine `img`.
+- **Nie** studytab, nie Kapy, keine App-Bilder: `mentions_studytab = false`, `is_ad = false`.
 - Themen abwechseln: Lerntipps & Methoden, Schulalltag & Memes, Matura & Prüfungsstress, Motivation & Produktivität.
-- 7–9 Slides, sonst gleiche Textregeln wie B. Anderer Ton als B, damit die Accounts nicht gleich wirken.
+- 7–9 Slides. Hooks ohne „niche“ und ohne das B-Muster, z. B. Frage, „POV: …“, „things nobody tells you about …“, Vorher → Nachher, Relatable-Momente, Checkliste. Anderer Ton als B.
+
+### Für alle Accounts
+
+- **Nie Ich-Form** („I scan my notes…“, „I did 5“), keine erfundenen Erlebnisse.
+- Jeder Tipp braucht etwas Konkretes (Zahl, Regel, Beispiel, Satz zum Kopieren). Allgemeinplätze (mehr schlafen, Handy weg, Pausen machen, früh anfangen) nur mit konkretem Twist, sonst weglassen.
+- Pro Account höchstens 4 von 7 Posts als Listicle.
 
 ### Felder pro Entwurf
 
 - `title`: TikTok-Titel, max. 90 Zeichen.
 - `caption`, `hashtags` (Array mit `#`).
-- `sound_hint`: „aktuell trendenden Sound aus den TikTok-Vorschlägen wählen“ oder ein konkreter Sound aus der Trend-Recherche.
-- `planned_at` (Startwerte, bis `insights` etwas anderes sagt): B 17:30, A 18:30, C 16:30 Wiener Zeit, als `timestamptz` mit `Europe/Vienna`, z. B. `('WOCHE'::date + 0 + time '17:30') at time zone 'Europe/Vienna'`.
-- Ca. 20 % der Posts sind Tests: andere Uhrzeit **oder** anderes Format (immer nur eine Sache), in `experiment` kurz beschreiben (z. B. „Uhrzeit 20:00 statt 17:30“).
-- `status = 'entwurf'`.
+- `sound_hint`: Sound aus Olivers gespeicherten Posts, sonst „aktuell trendenden Sound aus den TikTok-Vorschlägen wählen“.
+- `planned_at` (Startwerte, bis `insights` etwas anderes sagt): B 17:30, A 18:30, C 16:30 Wiener Zeit, z. B. `('WOCHE'::date + 0 + time '17:30') at time zone 'Europe/Vienna'`.
+- Ca. 20 % der Posts sind Tests: andere Uhrzeit **oder** anderes Format (immer nur eine Sache), in `experiment` kurz beschreiben.
+- `status = 'entwurf'`, `template = 'notiz'`.
 
 ```sql
 insert into drafts (account_id, trend_id, template, title, slides, caption, hashtags, mentions_studytab, is_ad, sound_hint, planned_at, experiment)
@@ -86,30 +93,21 @@ values ((select id from accounts where slot = 'B'), '<trend-uuid>', 'notiz', $q$
         ('WOCHE'::date + 0 + time '17:30') at time zone 'Europe/Vienna', null);
 ```
 
-## Qualitätsregeln (aus dem Testlauf vom 24.11.2026)
-
-- **Nie Ich-Form** („I scan my notes…“, „I did 5“). Keine erfundenen Erlebnisse. studytab neutral beschreiben („btw, studytab does this: …“). Eine Ich-Erzählung mit Werbung wirkt wie ein unabhängiger Schüler und ist verdeckte Werbung.
-- **Trend-Format wirklich nutzen:** Struktur und Aufbau des Trends übernehmen, nicht nur `trend_id` setzen. Jeder Trend höchstens 2x pro Woche. Pro Account höchstens 4 von 7 Posts als Listicle.
-- **Account C anders als B:** Hooks ohne „niche“ und ohne das B-Muster „7 niche …“. Stattdessen z. B. Frage, „POV: …“, „things nobody tells you about …“, Vorher → Nachher, Relatable-Momente, Checkliste.
-- **Account B:** Zahl im Hook nicht immer 7 (passend zur Slide-Anzahl, 6–8 Tipps).
-- **Allgemeinplätze** (mehr schlafen, Handy weg, Pausen machen, früh anfangen) nur mit konkretem Twist (Zahl, Regel, Satz zum Kopieren), sonst weglassen.
-- **Bilder auf A:** Das Mockup muss genau das Feature der Slide zeigen. Für Features ohne Mockup (Moodle, Kalender/Lernplan, Streak, Kapy-Chat) ein Kapy-Bild oder kein Bild. Dasselbe Mockup höchstens 2x pro Post.
-- Englische Posts gehen weltweit: Notenrechner als „works with your school's grading scale“ beschreiben, nicht nur österreichische Skala.
-
 ## Gesetzliche Mindestregeln (nicht verhandelbar)
 
 - Keine falschen Versprechen über studytab („garantiert bessere Noten“).
 - Konkurrenz-Apps nicht nennen, herabsetzen oder falsch darstellen.
 - Keine echten Lehrer, Schüler oder Schulen bloßstellen.
-- Keine fremden Clips, Bilder oder Texte übernehmen – nur Formate nachbauen.
+- Keine fremden Clips oder Texte übernehmen – nur Formate nachbauen.
 - Jeder Post mit studytab ist Werbung (`is_ad = true`); die Datenbank lehnt ihn sonst ab, und auf Account C ganz.
 
 ## 3. Prüfen und berichten
 
 ```sql
-select a.slot, count(*), sum(d.mentions_studytab::int) as werbung
+select a.slot, count(*), sum(d.mentions_studytab::int) as werbung,
+       count(*) filter (where exists (select 1 from jsonb_array_elements(d.slides) e where not e ? 'img')) as ohne_bild
   from drafts d join accounts a on a.id = d.account_id
   where d.planned_at >= 'WOCHE'::date and d.planned_at < 'WOCHE'::date + 7 group by a.slot order by a.slot;
 ```
 
-Erwartung: A 7/7, B 7/2, C 7/0. Kurzer Bericht an Oliver (Deutsch, knapp): wie viele Trends und Entwürfe, welche Tests diese Woche, was auffiel (z. B. dünne Trend-Daten).
+Erwartung: A 7/7/0, B 7/2/0, C 7/0/0. Kurzer Bericht an Oliver (Deutsch, knapp): wie viele seiner gespeicherten Posts genutzt wurden, wie viele Entwürfe, welche Tests, was auffiel.

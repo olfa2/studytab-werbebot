@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { currentWeek, viennaLocalToIso } from "@/lib/time";
+import { currentWeek, nextWeek, viennaLocalToIso } from "@/lib/time";
 import type { DraftStatus } from "@/lib/database.types";
 
 const str = (f: FormData, k: string) => {
@@ -167,4 +167,22 @@ export async function toggleInsight(formData: FormData) {
     .eq("id", String(formData.get("id")));
   if (error) throw new Error(error.message);
   revalidatePath("/wissen");
+}
+
+/** Viraler Post, den Oliver beim Scrollen gefunden hat – Grundlage für den nächsten Wochenlauf */
+export async function addViralPost(formData: FormData) {
+  const url = str(formData, "source_url");
+  if (!url || !/tiktok\.com/.test(url)) throw new Error("Bitte einen TikTok-Link einfügen");
+  const supabase = await createClient();
+  const { error } = await supabase.from("trends").insert({
+    week: nextWeek(),
+    source: "oliver",
+    source_url: url,
+    hook: str(formData, "hook"),
+    format: str(formData, "format"),
+    views: num(formData, "views"),
+    notes: str(formData, "notes"),
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath("/trends");
 }

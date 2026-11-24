@@ -8,6 +8,7 @@ export const W = 1080;
 export const H = 1440;
 const M = 72;
 const BOTTOM = 1300; // darunter liegt der TikTok-Titel
+const SAFE_R = 880; // rechts unten liegen Profilbild, Like, Kommentar
 const INK = "#111111";
 const BRAND = {
   green: "#73BF06",
@@ -154,7 +155,18 @@ function NotizSlide({ s, i }: { s: Slide; i: number }) {
       }}
     >
       <RichText text={s.title} size={cover ? 74 : 64} lineHeight={cover ? 92 : 80} color={INK} mark="underline" />
-      {!cover && s.body && (
+      {!cover && s.body && img && !isPhone && i % 2 === 1 ? (
+        // Text links, Bild rechts (rechter Rand bleibt frei für die TikTok-Buttons)
+        <div style={{ display: "flex", marginTop: 50, alignItems: "flex-start" }}>
+          <div style={{ display: "flex", width: 480 }}>
+            <RichText text={s.body} size={36} lineHeight={50} color={INK} mark="underline" />
+          </div>
+          <div style={{ display: "flex", width: SAFE_R - M - 480 - 24, marginLeft: 24, marginTop: 20, justifyContent: "flex-end" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
+            <img src={img.src} {...fit(img, SAFE_R - M - 480 - 24, 760)} />
+          </div>
+        </div>
+      ) : !cover && s.body && (
         <div style={{ display: "flex", marginTop: 50 }}>
           <RichText text={s.body} size={36} lineHeight={50} color={INK} mark="underline" />
         </div>
@@ -170,7 +182,7 @@ function NotizSlide({ s, i }: { s: Slide; i: number }) {
           marginBottom: H - BOTTOM,
         }}
       >
-        {img && (
+        {img && (cover || isPhone || i % 2 === 0 || !s.body) && (
           // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
           <img src={img.src} {...fit(img, cover ? 680 : isPhone ? 560 : 540, cover ? 560 : 640)} />
         )}
