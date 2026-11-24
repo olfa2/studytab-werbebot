@@ -79,3 +79,8 @@ export function nextWeek() {
   d.setUTCDate(d.getUTCDate() + 7);
   return d.toISOString().slice(0, 10);
 }
+
+/** ISO-Zeitpunkt vor n Tagen */
+export function daysAgo(n: number) {
+  return new Date(Date.now() - 1000 * 60 * 60 * 24 * n).toISOString();
+}

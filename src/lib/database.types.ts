@@ -51,6 +51,12 @@ export type Trend = {
   growth_7d: number | null;
   rank: number | null;
   notes: string | null;
+  author: string | null;
+  posted_at: string | null;
+  saves: number | null;
+  comments: number | null;
+  slide_count: number | null;
+  search_query: string | null;
   created_at: string;
 };
 export type Draft = {
@@ -119,7 +125,7 @@ export type Database = {
   public: {
     Tables: {
       accounts: T<Account, Opt<Account, "id" | "created_at" | "handle" | "platform" | "description" | "style_notes" | "studytab_share" | "is_business">>;
-      trends: T<Trend, Opt<Trend, "id" | "created_at" | "source_url" | "hook" | "format" | "structure" | "topic" | "sound" | "hashtags" | "views" | "likes" | "shares" | "growth_7d" | "rank" | "notes">>;
+      trends: T<Trend, Opt<Trend, "id" | "created_at" | "source_url" | "hook" | "format" | "structure" | "topic" | "sound" | "hashtags" | "views" | "likes" | "shares" | "growth_7d" | "rank" | "notes" | "author" | "posted_at" | "saves" | "comments" | "slide_count" | "search_query">>;
       drafts: T<
         Draft,
         Opt<Draft, "id" | "created_at" | "updated_at" | "trend_id" | "slides" | "image_paths" | "caption" | "hashtags" | "mentions_studytab" | "is_ad" | "status" | "planned_at" | "experiment" | "title" | "template" | "sound_hint">,

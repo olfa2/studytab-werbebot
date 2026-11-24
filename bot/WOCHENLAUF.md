@@ -22,11 +22,11 @@ Regeln aus `insights` haben Vorrang vor den Startwerten unten, wenn `based_on_po
 
 ## 1. Trend-Scout
 
-**Hauptquelle sind die viralen TikToks, die Oliver unter der Woche gespeichert hat** (`trends` mit `source = 'oliver'` und `week = 'WOCHE'`: Link, Hook von Slide 1, Views, Notiz). TikTok selbst wird nicht geöffnet.
+**Hauptquelle sind echte TikTok-Posts aus der Datenbank** (`trends` mit `week = 'WOCHE'` und `source in ('oliver', 'tiktok')`): von Oliver gespeicherte Posts und Posts, die direkt auf TikTok gefunden wurden (Seite „TikTok“ im Dashboard, mit Likes, Saves, Datum, Notizen zum Format). TikTok selbst wird in diesem Lauf nicht geöffnet. Posts mit `notes` und hoher Save-Quote (Saves ÷ Likes) zählen am meisten; ältere als 6 Monate nur als Ergänzung.
 
 - Pro gespeichertem Post analysieren: Was ist das Format (Listicle, Vorher → Nachher, POV, Geständnis, Checkliste …), wie ist der Hook gebaut (Zahl, Identität, Provokation, Frage …), welches Thema? Ergebnis in die Zeile schreiben (`update trends set format = …, structure = …, topic = …, rank = … where id = …`). Ranking nach Views, sonst nach Olivers Reihenfolge.
 - Hook-Text nie wörtlich übernehmen, nur die Bauweise.
-- **Nur wenn weniger als 3 gespeicherte Posts da sind:** mit Websuche auf bis zu 5 Formate ergänzen, `source = 'websuche (Ersatz)'`, Zahlen nur wenn belegt (sonst `null`). Im Bericht deutlich sagen, dass Oliver zu wenig Posts gespeichert hat.
+- **Nur wenn weniger als 3 solche Posts da sind:** mit Websuche auf bis zu 5 Formate ergänzen, `source = 'websuche (Ersatz)'`, Zahlen nur wenn belegt (sonst `null`). Im Bericht deutlich sagen, dass Oliver zu wenig Posts gespeichert hat.
 
 Texte immer mit `$q$…$q$` quoten.
 
@@ -110,4 +110,4 @@ select a.slot, count(*), sum(d.mentions_studytab::int) as werbung,
   where d.planned_at >= 'WOCHE'::date and d.planned_at < 'WOCHE'::date + 7 group by a.slot order by a.slot;
 ```
 
-Erwartung: A 7/7/0, B 7/2/0, C 7/0/0. Kurzer Bericht an Oliver (Deutsch, knapp): wie viele seiner gespeicherten Posts genutzt wurden, wie viele Entwürfe, welche Tests, was auffiel.
+Erwartung: A 7/7/0, B 7/2/0, C 7/0/0. Kurzer Bericht an Oliver (Deutsch, knapp): wie viele der TikTok-Posts genutzt wurden, wie viele Entwürfe, welche Tests, was auffiel.
