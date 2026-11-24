@@ -86,6 +86,16 @@ values ((select id from accounts where slot = 'B'), '<trend-uuid>', 'notiz', $q$
         ('WOCHE'::date + 0 + time '17:30') at time zone 'Europe/Vienna', null);
 ```
 
+## Qualitätsregeln (aus dem Testlauf vom 24.11.2026)
+
+- **Nie Ich-Form** („I scan my notes…“, „I did 5“). Keine erfundenen Erlebnisse. studytab neutral beschreiben („btw, studytab does this: …“). Eine Ich-Erzählung mit Werbung wirkt wie ein unabhängiger Schüler und ist verdeckte Werbung.
+- **Trend-Format wirklich nutzen:** Struktur und Aufbau des Trends übernehmen, nicht nur `trend_id` setzen. Jeder Trend höchstens 2x pro Woche. Pro Account höchstens 4 von 7 Posts als Listicle.
+- **Account C anders als B:** Hooks ohne „niche“ und ohne das B-Muster „7 niche …“. Stattdessen z. B. Frage, „POV: …“, „things nobody tells you about …“, Vorher → Nachher, Relatable-Momente, Checkliste.
+- **Account B:** Zahl im Hook nicht immer 7 (passend zur Slide-Anzahl, 6–8 Tipps).
+- **Allgemeinplätze** (mehr schlafen, Handy weg, Pausen machen, früh anfangen) nur mit konkretem Twist (Zahl, Regel, Satz zum Kopieren), sonst weglassen.
+- **Bilder auf A:** Das Mockup muss genau das Feature der Slide zeigen. Für Features ohne Mockup (Moodle, Kalender/Lernplan, Streak, Kapy-Chat) ein Kapy-Bild oder kein Bild. Dasselbe Mockup höchstens 2x pro Post.
+- Englische Posts gehen weltweit: Notenrechner als „works with your school's grading scale“ beschreiben, nicht nur österreichische Skala.
+
 ## Gesetzliche Mindestregeln (nicht verhandelbar)
 
 - Keine falschen Versprechen über studytab („garantiert bessere Noten“).
