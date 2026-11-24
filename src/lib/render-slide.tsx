@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Slide } from "./slides";
 export type { Slide } from "./slides";
@@ -25,6 +25,21 @@ const fonts = [
   { name: "Inter", data: readFileSync(join(root, "assets/Inter-400.ttf")), weight: 400 as const, style: "normal" as const },
   { name: "Inter", data: readFileSync(join(root, "assets/Inter-700.ttf")), weight: 700 as const, style: "normal" as const },
 ];
+
+/** Alle Stimmungsbilder (p-*) – Ersatz, wenn ein Bild fehlt */
+const MOOD = readdirSync(join(root, "public/library"))
+  .filter((f) => f.startsWith("p-"))
+  .map((f) => f.replace(/\.(png|jpg)$/, ""))
+  .sort();
+
+/** Fehlt das Bild oder gibt es den Schlüssel nicht, kommt ein fixes Stimmungsbild (abhängig vom Text). */
+function imageFor(s: Slide) {
+  const own = libraryImage(s.img);
+  if (own || MOOD.length === 0) return own;
+  let h = 0;
+  for (const c of s.title + (s.body ?? "")) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return libraryImage(MOOD[h % MOOD.length]);
+}
 
 /** Bild aus der Bibliothek als Data-URL + Seitenverhältnis */
 function libraryImage(key?: string) {
@@ -139,7 +154,7 @@ function RichText({
 }
 
 function NotizSlide({ s, i }: { s: Slide; i: number }) {
-  const img = libraryImage(s.img);
+  const img = imageFor(s);
   const cover = i === 1;
   const isPhone = s.img?.startsWith("app-");
   return (
@@ -195,7 +210,7 @@ function NotizSlide({ s, i }: { s: Slide; i: number }) {
 }
 
 function MarkeSlide({ s, i, n }: { s: Slide; i: number; n: number }) {
-  const img = libraryImage(s.img);
+  const img = imageFor(s);
   const cover = i === 1;
   const bg = cover ? BRAND.green : BRAND.bg;
   const fg = cover ? "#ffffff" : BRAND.ink;
